@@ -296,17 +296,8 @@ class Subnet < ApplicationRecord
         errors.add :externalipam_group, _('Group not found in the configured External IPAM instance')
       elsif !subnet_exists_in_external_ipam
         errors.add :network, _('Subnet not found in the configured External IPAM instance')
-      elsif !subnet_exists_in_group
-        errors.add :network, _('Subnet not found in the specified External IPAM group')
       end
     end
-  end
-
-  def subnet_exists_in_group
-    return true if externalipam_group.empty?
-    return false unless external_ipam_proxy
-    subnet = external_ipam_proxy.get_subnet_from_group(network_address, externalipam_group)
-    subnet.empty? ? false : true
   end
 
   def subnet_exists_in_external_ipam
