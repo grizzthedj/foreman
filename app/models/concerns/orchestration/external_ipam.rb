@@ -19,7 +19,7 @@ module Orchestration::ExternalIPAM
     ip, subnet = params[:ip], params[:subnet]
 
     if ip_is_available?(ip, subnet)
-      subnet.external_ipam_proxy.add_ip_to_subnet(ip, subnet.network_address, subnet.externalipam_group)
+      subnet.external_ipam_proxy.add_ip_to_subnet(subnet.external_ipam_provider, ip, subnet.network_address, subnet.externalipam_group)
     else
       errors.add :ip, _('This IP address has already been reserved in External IPAM') if subnet.network_type == "IPv4"
       errors.add :ip6, _('This IP address has already been reserved in External IPAM') if subnet.network_type == "IPv6"
@@ -29,7 +29,7 @@ module Orchestration::ExternalIPAM
 
   def set_remove_external_ip(params)
     ip, subnet = params[:ip], params[:subnet]
-    subnet.external_ipam_proxy.delete_ip_from_subnet(ip, subnet.network_address, subnet.externalipam_group)
+    subnet.external_ipam_proxy.delete_ip_from_subnet(subnet.external_ipam_provider, ip, subnet.network_address, subnet.externalipam_group)
   end
 
   def del_add_external_ip(params)
@@ -42,17 +42,17 @@ module Orchestration::ExternalIPAM
 
   def rollback_on_add
     if ipv4_errors_not_ipv6? && !ip_is_available?(ip6, subnet6)
-      subnet.external_ipam_proxy.delete_ip_from_subnet(ip6, subnet6.network_address, subnet6.externalipam_group)
+      subnet.external_ipam_proxy.delete_ip_from_subnet(subnet6.external_ipam_provider, ip6, subnet6.network_address, subnet6.externalipam_group)
     elsif ipv6_errors_not_ipv4? && !ip_is_available?(ip, subnet)
-      subnet.external_ipam_proxy.delete_ip_from_subnet(ip, subnet.network_address, subnet.externalipam_group)
+      subnet.external_ipam_proxy.delete_ip_from_subnet(subnet.external_ipam_provider, ip, subnet.network_address, subnet.externalipam_group)
     end
   end
 
   def rollback_on_update
     if ipv4_errors_not_ipv6? && ip_is_available?(old.ip, old.subnet)
-      subnet.external_ipam_proxy.add_ip_to_subnet(old.ip, old.subnet.network_address, old.subnet.externalipam_group)
+      subnet.external_ipam_proxy.add_ip_to_subnet(old.subnet.external_ipam_provider, old.ip, old.subnet.network_address, old.subnet.externalipam_group)
     elsif ipv6_errors_not_ipv4? && ip_is_available?(old.ip6, old.subnet6)
-      subnet.external_ipam_proxy.add_ip_to_subnet(old.ip6, old.subnet6.network_address, old.subnet6.externalipam_group)
+      subnet.external_ipam_proxy.add_ip_to_subnet(old.subnet6.external_ipam_provider, old.ip6, old.subnet6.network_address, old.subnet6.externalipam_group)
     end
   end
 
@@ -77,7 +77,7 @@ module Orchestration::ExternalIPAM
   end
 
   def ip_is_available?(ip, subnet)
-    !subnet.external_ipam_proxy.ip_exists(ip, subnet.network_address, subnet.externalipam_group)
+    !subnet.external_ipam_proxy.ip_exists(subnet.external_ipam_provider, ip, subnet.network_address, subnet.externalipam_group)
   end
 
   def ipv4_errors_not_ipv6?

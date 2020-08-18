@@ -16,7 +16,7 @@ module ProxyAPI
     # Groups of subnets are cached under the External IPAM Group name. "IPAM Group" in the snippet below is
     # the 'section' in phpIPAM. For subnets that have an External IPAM group specified(e.g. "IPAM Group"),
     # the IP's/mac are cached under the "IPAM Group" key. If External IPAM group is not defined, then they
-    # are cached under the "" key.
+    # are cached under the "" key. Each External IPAM provider has it's own cache.
     #
     # The IP address is only actually reserved in the External IPAM database upon successful host
     # and/or interface creation.
@@ -51,7 +51,7 @@ module ProxyAPI
     #
     # Responses:
     #   Responses if success:
-    #     "100.55.55.3"   (IPv4)
+    #     "100.55.55.3"          (IPv4)
     #     "2001:db8:abcd:12::1"  (IPv6)
     #   Response if missing required params:
     #     {"error": ["A 'cidr' parameter for the subnet must be provided(e.g. 100.10.10.0/24)","A 'mac' address must be provided(e.g. 00:0a:95:9d:68:10)"]}
@@ -61,9 +61,9 @@ module ProxyAPI
     #     {"error": "No free addresses found"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def next_ip(subnet, mac, group = "")
+    def next_ip(provider, subnet, mac, group = "")
       raise "subnet cannot be nil" if subnet.nil?
-      response = parse get("/subnet/#{subnet}/next_ip?mac=#{mac}&group=#{URI.escape(group.to_s)}")
+      response = parse get("/#{provider}/subnet/#{subnet}/next_ip?mac=#{mac}&group=#{URI.escape(group.to_s)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to retrieve the next available IP for subnet %{subnet} External IPAM."), subnet: subnet)
@@ -92,9 +92,9 @@ module ProxyAPI
     #     {"error": ["A 'cidr' parameter for the subnet must be provided(e.g. 100.10.10.0/24)","Missing 'ip' parameter. An IPv4 address must be provided(e.g. 100.10.10.22)"]}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def add_ip_to_subnet(ip, subnet, group = "")
+    def add_ip_to_subnet(provider, ip, subnet, group = "")
       raise "subnet cannot be nil" if subnet.nil?
-      response = parse post({}, "/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
+      response = parse post({}, "/#{provider}/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to add IP %{ip} to the subnet %{subnet} in External IPAM."), ip: ip, subnet: subnet)
@@ -121,7 +121,7 @@ module ProxyAPI
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
     def get_groups(provider)
-      response = parse get("/groups")
+      response = parse get("/#{provider}/groups")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to obtain groups from External IPAM."))
@@ -142,9 +142,9 @@ module ProxyAPI
     #     {"error": "Groups are not supported"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def get_group(group)
+    def get_group(provider, group)
       raise "group must be provided" if group.blank?
-      response = parse get("/groups/#{URI.escape(group)}")
+      response = parse get("/#{provider}/groups/#{URI.escape(group)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to obtain group %{group} from External IPAM."), group: group)
@@ -169,9 +169,9 @@ module ProxyAPI
     #     {"error": "Group not found in External IPAM"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM"}
-    def get_subnets_by_group(group)
+    def get_subnets_by_group(provider, group)
       raise "group must be provided" if group.blank?
-      response = parse get("/groups/#{URI.escape(group)}/subnets")
+      response = parse get("/#{provider}/groups/#{URI.escape(group)}/subnets")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to obtain subnets in group %{group} from External IPAM."), group: group)
@@ -193,15 +193,15 @@ module ProxyAPI
     #     {"error": "Groups are not supported"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def get_subnet(subnet, group = "")
+    def get_subnet(provider, subnet, group = "")
       raise "subnet cannot be nil" if subnet.nil?
-      response = parse get("/subnet/#{subnet}?group=#{URI.escape(group.to_s)}")
+      response = parse get("/#{provider}/subnet/#{subnet}?group=#{URI.escape(group.to_s)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to obtain subnet %{subnet} from External IPAM."), subnet: subnet)
     end
 
-    # Checks whether an IP address has already been reserved in External IPAM.
+    # Checks whether an IP address has been reserved in External IPAM.
     #
     # Inputs: 1. provider:         The external IPAM provider(e.g. "phpipam", "netbox")
     #         2. ip:               IP address to be checked
@@ -209,10 +209,8 @@ module ProxyAPI
     #                              IPv6 - "2001:db8:abcd:12::/124")
     #         4. group(optional):  The name of the External IPAM group containing the subnet to pull IP from
     #
-    # Returns: true if IP exists in External IPAM, otherwise false.
-    #
-    # Responses from Proxy plugin:
-    #   Response if IP is already reserved:
+    # Responses:
+    #   Response if IP is reserved:
     #     true
     #   Response if IP address is available
     #     false
@@ -224,9 +222,9 @@ module ProxyAPI
     #     {"error": "Groups are not supported"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def ip_exists(ip, subnet, group = "")
+    def ip_exists(provider, ip, subnet, group = "")
       raise "subnet cannot be nil" if subnet.nil?
-      response = parse get("/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
+      response = parse get("/#{provider}/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to obtain IP address for subnet %{subnet} in External IPAM."), subnet: subnet)
@@ -251,9 +249,9 @@ module ProxyAPI
     #     {"error": "Groups are not supported"}
     #   Response if can't connect to External IPAM server
     #     {"error": "Unable to connect to External IPAM server"}
-    def delete_ip_from_subnet(ip, subnet, group = "")
+    def delete_ip_from_subnet(provider, ip, subnet, group = "")
       raise "subnet cannot be nil" if subnet.nil?
-      response = parse delete("/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
+      response = parse delete("/#{provider}/subnet/#{subnet}/#{ip}?group=#{URI.escape(group.to_s)}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to delete IP %{ip} from the subnet %{subnet} in External IPAM."), ip: ip, subnet: subnet)
@@ -272,10 +270,10 @@ module ProxyAPI
     #     {"error": "No subnet 172.55.66.0/29 found in section '<:group>'"}
     #   Response if groups not supported:
     #     {"error": "Groups are not supported"}
-    def get_subnet_from_group(subnet, group)
+    def get_subnet_from_group(provider, subnet, group)
       raise "subnet must be provided" if subnet.blank?
       raise "group must be provided" if group.blank?
-      response = parse get("/group/#{URI.escape(group.to_s)}/subnet/#{subnet}")
+      response = parse get("/#{provider}/group/#{URI.escape(group.to_s)}/subnet/#{subnet}")
       process_response(response)
     rescue => e
       raise ProxyException.new(url, e, N_("Unable to check if subnet %{subnet} exists in the External IPAM group %{group}."), subnet: subnet, group: group)

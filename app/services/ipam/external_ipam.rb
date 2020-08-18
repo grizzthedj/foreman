@@ -4,7 +4,7 @@ module IPAM
 
     def suggest_ip
       logger.debug("Obtaining next available IP from IPAM for subnet #{@subnet.network_address}")
-      next_ip = external_ipam_proxy.next_ip(@subnet.network_address, mac, @subnet.externalipam_group)
+      next_ip = external_ipam_proxy.next_ip(@subnet.external_ipam_provider, @subnet.network_address, mac, @subnet.externalipam_group)
       logger.debug("IPAM returned #{next_ip} as the next available IP in subnet #{@subnet.network_address}")
       next_ip
     rescue => e

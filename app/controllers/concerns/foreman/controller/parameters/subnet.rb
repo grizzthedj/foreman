@@ -13,6 +13,7 @@ module Foreman::Controller::Parameters::Subnet
           :dns_primary,
           :dns_secondary,
           :externalipam_group,
+          :external_ipam_provider_id,
           :from,
           :gateway,
           :ipam,

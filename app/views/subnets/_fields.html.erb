@@ -24,7 +24,8 @@
 </div>
 
 <div id='external_ipam_options' class='<%= f.object.ipam_needs_group? ? "" : "hide" %>'>
-  <%= text_f f, :externalipam_group, :label => _("External IPAM Group"), :help_inline => _("Optional: The group/section of subnets in External IPAM to associate this subnet with") %>
+  <%= selectable_f f, :external_ipam_provider_id, ExternalIpamProvider.all.map{|e| [e.name, e.id]}, {}, :label => _("Provider"), :help_inline => _("External IPAM provider") %>
+  <%= text_f f, :externalipam_group, :label => _("External IPAM Group"), :help_inline => _("Optional: The group of subnets in External IPAM to associate this subnet with") %>
 </div>
 
 <%= number_f f, :vlanid, :min => 0, :max => 4095, :help_inline => _("Optional: VLAN ID for this subnet") %>

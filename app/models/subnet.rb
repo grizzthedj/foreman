@@ -302,16 +302,20 @@ class Subnet < ApplicationRecord
 
   def subnet_exists_in_external_ipam
     return false unless external_ipam_proxy
-    subnet = external_ipam_proxy.get_subnet(network_address, externalipam_group)
+    subnet = external_ipam_proxy.get_subnet(external_ipam_provider, network_address, externalipam_group)
     subnet.empty? ? false : true
   end
 
   def group_exists_in_external_ipam
     return true if externalipam_group.empty?
     return false unless external_ipam_proxy
-    group = external_ipam_proxy.get_group(externalipam_group)
+    group = external_ipam_proxy.get_group(external_ipam_provider, externalipam_group)
     group.empty? ? false : true
   end
+
+  def external_ipam_provider
+    ExternalIpamProvider.find(external_ipam_provider_id).name
+  end 
 
   def unused_ip(mac = nil, excluded_ips = [])
     unless supported_ipam_modes.map { |m| IPAM::MODES[m] }.include?(ipam)
